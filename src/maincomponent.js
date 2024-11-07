@@ -10,8 +10,8 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { MessageSquare } from 'lucide-react';
-import { Input } from './components/ui/input'; // Updated path
-import { Button } from './components/ui/button'; // Updated path
+import { Input } from './components/ui/input';
+import { Button } from './components/ui/button';
 
 // Constants
 const EMISSIONS_THRESHOLD = 1.5;
