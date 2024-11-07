@@ -365,6 +365,7 @@ PerformanceTrendsChart.propTypes = {
 };
 
 // SuggestionsList Component
+// SuggestionsList Component
 const SuggestionsList = ({ suggestions }) => {
   return (
     <div className="p-4 border rounded">
@@ -388,5 +389,3 @@ const SuggestionsList = ({ suggestions }) => {
 SuggestionsList.propTypes = {
   suggestions: PropTypes.array.isRequired
 };
-
-export default GHGToolEnhanced;
