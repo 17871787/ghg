@@ -1,370 +1,210 @@
-// ChatWindow.js
+// FarmDashboard.js
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button';
-import { ScrollArea } from '../components/ui/scroll-area';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar
 } from 'recharts';
-import { Send, AlertCircle, ArrowRight, HelpCircle } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
-import { subMonths, format } from 'date-fns';
-import { FARM_CONSTANTS } from './constants';
-import { calculateMetrics } from './utils';
+import {
+  Card, CardContent, CardHeader, CardTitle, CardDescription
+} from "@/components/ui/card";
+import { Alert } from "@/components/ui/alert";
+import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  AlertCircle, ArrowRight, Download
+} from 'lucide-react';
+import ChatWindow from './ChatWindow'; // Import the ChatWindow component
 
-// MetricDisplay component
-const MetricDisplay = ({ label, value, unit, change }) => (
-  <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-    <span className="text-sm text-gray-600">{label}</span>
-    <div className="font-semibold">
-      {value.toFixed(2)}
-      {unit}
-      {change !== undefined && (
-        <span
-          className={`ml-2 ${
-            change > 0 ? 'text-green-500' : 'text-red-500'
-          }`}
-        >
-          ({change > 0 ? '+' : ''}
-          {change}%)
-        </span>
-      )}
-    </div>
-  </div>
-);
+const FARM_CONSTANTS = {
+  COSTS: {
+    BASE_OPERATIONAL: 0.20,
+    FEED_PER_KG: 0.38,
+    NITROGEN_PER_KG: 1.20
+  },
+  BASELINES: {
+    FEED: 8.08,
+    NITROGEN: 180
+  },
+  THRESHOLDS: {
+    emissions: 1.5,
+    costPerLitre: 0.35,
+    proteinEfficiency: 12,
+    nitrogenEfficiency: 15
+  },
+  COLORS: {
+    primary: '#3b82f6',
+    warning: '#ef4444',
+    success: '#22c55e',
+    neutral: '#64748b'
+  }
+};
 
-const ChatWindow = ({ farmState, metrics, setFarmState }) => {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const messagesEndRef = useRef(null);
-
-  // Auto-scroll effect
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Welcome message
-  useEffect(() => {
-    const welcomeMessage = {
-      id: uuidv4(),
-      type: 'system',
-      content: (
-        <div className="space-y-2">
-          <p>Welcome! I can help you analyze your farm's performance.</p>
-          <p className="text-sm text-gray-500">Try asking:</p>
-          <ul className="list-disc list-inside text-sm text-gray-500">
-            <li>"Show me emissions"</li>
-            <li>"Analyze efficiency"</li>
-            <li>"What if I reduce feed by 20%?"</li>
-          </ul>
-        </div>
-      ),
-      timestamp: new Date(),
-    };
-    setMessages([welcomeMessage]);
-  }, []);
-
-  const handleSend = () => {
-    if (!input.trim()) return;
-
-    const userMessage = {
-      id: uuidv4(),
-      type: 'user',
-      content: input,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-
-    // Process query and generate response
-    processQuery(input);
-  };
-
-  const processQuery = (query) => {
-    const normalizedQuery = query.toLowerCase().trim();
-
-    if (
-      normalizedQuery.includes('show') &&
-      normalizedQuery.includes('emissions')
-    ) {
-      // Use actual emissions data
-      const data = getHistoricalData();
-
-      const responseContent = (
-        <div className="space-y-2">
-          <div className="w-full h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data}>
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="emissions" stroke="#ef4444" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="text-sm text-gray-500">
-            Showing emissions trends over the selected timeframe.
-          </p>
-        </div>
-      );
-
-      const systemMessage = {
-        id: uuidv4(),
-        type: 'system',
-        content: responseContent,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, systemMessage]);
-      return;
-    }
-
-    if (
-      normalizedQuery.includes('analyze') &&
-      normalizedQuery.includes('efficiency')
-    ) {
-      // Display efficiency metrics
-      const responseContent = (
-        <div className="space-y-2">
-          {Object.entries(metrics.efficiency).map(([key, value]) => (
-            <MetricDisplay
-              key={key}
-              label={`${key.charAt(0).toUpperCase()}${key.slice(1)} Efficiency`}
-              value={value}
-              unit="%"
-            />
-          ))}
-          <div className="mt-2 text-sm text-gray-600">
-            <p>Recommendations:</p>
-            <ul className="list-disc list-inside mt-1">
-              <li>Consider adjusting feed levels</li>
-              <li>Optimize nitrogen application</li>
-            </ul>
-          </div>
-        </div>
-      );
-
-      const systemMessage = {
-        id: uuidv4(),
-        type: 'system',
-        content: responseContent,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, systemMessage]);
-      return;
-    }
-
-    if (normalizedQuery.includes('reduce feed')) {
-      // Extract percentage from the query
-      const match = normalizedQuery.match(/reduce feed by (\d+)%/);
-      if (match && match[1]) {
-        const reductionPercentage = parseInt(match[1], 10);
-
-        if (reductionPercentage <= 0 || reductionPercentage > 100) {
-          const errorMessage = {
-            id: uuidv4(),
-            type: 'error',
-            content: (
-              <div className="flex items-center text-red-500">
-                <AlertCircle className="w-4 h-4 mr-2" />
-                Please specify a valid reduction percentage between 1 and 100.
-              </div>
-            ),
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, errorMessage]);
-          return;
-        }
-
-        // Calculate new feed value
-        const currentFeed = farmState.params.concentrateFeed;
-        const newFeed = currentFeed * (1 - reductionPercentage / 100);
-
-        // Update the farm state
-        setFarmState((prevState) => ({
-          ...prevState,
-          params: {
-            ...prevState.params,
-            concentrateFeed: newFeed,
-          },
-        }));
-
-        // Recalculate metrics with new params
-        const newParams = {
-          ...farmState.params,
-          concentrateFeed: newFeed,
-        };
-
-        const updatedMetrics = calculateMetrics(newParams);
-
-        const responseContent = (
-          <div className="space-y-2">
-            <div className="p-3 bg-blue-50 rounded-md">
-              <p className="font-medium">
-                Feed reduced by {reductionPercentage}% to{' '}
-                {newFeed.toFixed(2)} kg/day.
-              </p>
-              <p className="mt-2">Metrics have been updated accordingly.</p>
-            </div>
-            <MetricDisplay
-              label="Emissions"
-              value={updatedMetrics.base.emissions}
-              unit=" kg CO₂e"
-            />
-            <MetricDisplay
-              label="Yield"
-              value={updatedMetrics.base.yield}
-              unit=" litres"
-            />
-            <MetricDisplay
-              label="Protein Efficiency"
-              value={updatedMetrics.base.proteinEfficiency}
-              unit="%"
-            />
-          </div>
-        );
-
-        const systemMessage = {
-          id: uuidv4(),
-          type: 'system',
-          content: responseContent,
-          timestamp: new Date(),
-        };
-
-        setMessages((prev) => [...prev, systemMessage]);
-        return;
-      } else {
-        const helpMessage = {
-          id: uuidv4(),
-          type: 'alert',
-          content: (
-            <div className="flex items-center text-yellow-600">
-              <HelpCircle className="w-4 h-4 mr-2" />
-              Please specify the percentage by which you want to reduce the
-              feed. E.g., "Reduce feed by 20%".
-            </div>
-          ),
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, helpMessage]);
-        return;
-      }
-    }
-
-    // Default response
-    const defaultMessage = {
-      id: uuidv4(),
-      type: 'alert',
-      content: (
-        <div className="flex items-center gap-2 text-yellow-600">
-          <HelpCircle className="w-4 h-4" />
-          <div>
-            <p>I'm not sure how to help with that query.</p>
-            <p className="text-sm mt-1">Try asking about:</p>
-            <ul className="list-disc list-inside text-sm">
-              <li>Emissions data</li>
-              <li>Efficiency analysis</li>
-              <li>Feed reduction scenarios</li>
-            </ul>
-          </div>
-        </div>
-      ),
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, defaultMessage]);
-  };
-
-  // Function to get historical emissions data
-  const getHistoricalData = () => {
-    const periods = farmState.selectedTimeframe === '6m' ? 6 : 12;
-    const data = Array.from({ length: periods }, (_, i) => {
-      const date = subMonths(new Date(), periods - i - 1);
-      return {
-        month: format(date, 'MMM'),
-        emissions:
-          metrics.base.emissions * (1 + (Math.random() * 0.1 - 0.05)),
-      };
-    });
-
-    return data;
-  };
+const OptimizationAlert = ({ suggestion }) => {
+  const {
+    priority = 'default',
+    action = '',
+    impact = {}
+  } = suggestion || {};
 
   return (
-    <Card className="w-full h-[600px] flex flex-col">
-      <CardHeader className="border-b">
-        <CardTitle className="text-lg font-medium flex items-center gap-2">
-          Farm Assistant
-          <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-            Beta
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col">
-        <ScrollArea className="flex-1 pr-4">
-          <div className="space-y-4 py-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.type === 'user' ? 'justify-end' : 'justify-start'
-                }`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    message.type === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : message.type === 'alert'
-                      ? 'bg-yellow-50 border border-yellow-200'
-                      : message.type === 'error'
-                      ? 'bg-red-50 border border-red-200'
-                      : 'bg-gray-100'
-                  }`}
-                >
-                  {message.content}
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
-
-        <div className="flex items-center gap-2 mt-4 pt-4 border-t">
-          <Input
-            placeholder="Ask about emissions, efficiency, or try 'what if' scenarios..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) =>
-              e.key === 'Enter' && !e.shiftKey && handleSend()
-            }
-            className="flex-1"
-            aria-label="Chat input"
-          />
-          <Button
-            onClick={handleSend}
-            size="icon"
-            aria-label="Send message"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+    <Alert variant={priority === 'high' ? 'destructive' : 'default'}>
+      <AlertCircle className="h-4 w-4" />
+      <div className="ml-2">
+        <div className="font-semibold mb-1">{action}</div>
+        <div className="text-sm space-y-1">
+          {Object.entries(impact).map(([key, value], i) => (
+            <div key={i} className="flex items-center gap-2">
+              <ArrowRight className="h-3 w-3" />
+              <span className="capitalize">{key}:</span> {value}
+            </div>
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Alert>
   );
 };
 
-export default ChatWindow;
+const FarmDashboard = () => {
+  const [state, setState] = useState({
+    params: {
+      concentrateFeed: FARM_CONSTANTS.BASELINES.FEED,
+      nitrogenRate: FARM_CONSTANTS.BASELINES.NITROGEN
+    },
+    selectedTimeframe: '6m'
+  });
+
+  const metrics = useMemo(() => {
+    const baseMetrics = {
+      emissions: 1.39 + 0.05 * (state.params.concentrateFeed - FARM_CONSTANTS.BASELINES.FEED),
+      yield: 8750 + 100 * (state.params.concentrateFeed - FARM_CONSTANTS.BASELINES.FEED),
+      proteinEfficiency: 14.3 - 0.1 * (state.params.concentrateFeed - FARM_CONSTANTS.BASELINES.FEED),
+      nitrogenEfficiency: 17.6 - 0.02 * (state.params.nitrogenRate - FARM_CONSTANTS.BASELINES.NITROGEN)
+    };
+
+    const efficiencyScore = {
+      environmental: Math.max(0, 100 - (baseMetrics.emissions / FARM_CONSTANTS.THRESHOLDS.emissions) * 100),
+      economic: Math.max(0, 100 - (baseMetrics.yield * FARM_CONSTANTS.COSTS.BASE_OPERATIONAL / FARM_CONSTANTS.THRESHOLDS.costPerLitre) * 100),
+      operational: (baseMetrics.proteinEfficiency + baseMetrics.nitrogenEfficiency) / 2
+    };
+
+    return {
+      base: baseMetrics,
+      efficiency: efficiencyScore,
+      totalScore: (efficiencyScore.environmental + efficiencyScore.economic + efficiencyScore.operational) / 3
+    };
+  }, [state.params]);
+
+  const optimizationSuggestions = useMemo(() => {
+    const suggestions = [];
+
+    if (metrics.base.emissions > FARM_CONSTANTS.THRESHOLDS.emissions) {
+      const reducedFeed = state.params.concentrateFeed * 0.9;
+      const emissionsReduction =
+        metrics.base.emissions -
+        (1.39 + 0.05 * (reducedFeed - FARM_CONSTANTS.BASELINES.FEED));
+
+      suggestions.push({
+        priority: 'high',
+        category: 'environmental',
+        action: `Reduce feed to ${reducedFeed.toFixed(1)} kg/day`,
+        impact: {
+          emissions: `${(emissionsReduction * 100).toFixed(1)}% reduction`,
+          cost: `£${(
+            (state.params.concentrateFeed - reducedFeed) *
+            FARM_CONSTANTS.COSTS.FEED_PER_KG *
+            365
+          ).toFixed(2)} annual savings`,
+          yield: `${((reducedFeed / state.params.concentrateFeed - 1) * 100).toFixed(1)}% yield impact`
+        }
+      });
+    }
+
+    if (metrics.efficiency.operational < 70) {
+      suggestions.push({
+        priority: 'medium',
+        category: 'operational',
+        action: 'Optimize protein and nitrogen efficiency',
+        impact: {
+          potential: `${(70 - metrics.efficiency.operational).toFixed(1)}% efficiency improvement possible`,
+          cost: 'Estimated 5-10% cost reduction',
+          environmental: 'Reduced environmental impact'
+        }
+      });
+    }
+
+    return suggestions;
+  }, [metrics, state.params]);
+
+  const trendAnalysis = useMemo(() => {
+    const periods = state.selectedTimeframe === '6m' ? 6 : 12;
+    const baseData = Array.from({ length: periods }, (_, i) => {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+
+      return {
+        month: date.toLocaleString('default', { month: 'short' }),
+        emissions: metrics.base.emissions * (1 + (Math.random() * 0.1 - 0.05)),
+        efficiency: metrics.totalScore * (1 + (Math.random() * 0.1 - 0.05))
+      };
+    }).reverse();
+
+    return baseData.map((data, index, array) => {
+      if (index < 2) return data;
+
+      const slice = array.slice(index - 2, index + 1);
+      return {
+        ...data,
+        emissionsMA: slice.reduce((sum, d) => sum + d.emissions, 0) / 3
+      };
+    });
+  }, [metrics, state.selectedTimeframe]);
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Farm GHG Optimization Dashboard</h1>
+        <Button variant="outline" size="sm">
+          <Download className="w-4 h-4 mr-2" />
+          Export Data
+        </Button>
+      </div>
+
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analysis">Detailed Analysis</TabsTrigger>
+          <TabsTrigger value="optimization">Optimization</TabsTrigger>
+          <TabsTrigger value="assistant">Assistant</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          {/* Existing content for the Overview tab */}
+          {/* ... */}
+        </TabsContent>
+
+        <TabsContent value="analysis">
+          {/* Existing content for the Analysis tab */}
+          {/* ... */}
+        </TabsContent>
+
+        <TabsContent value="optimization">
+          {/* Existing content for the Optimization tab */}
+          {/* ... */}
+        </TabsContent>
+
+        <TabsContent value="assistant">
+          {/* Chat interface integrated here */}
+          <ChatWindow
+            farmState={state}
+            metrics={metrics}
+            setFarmState={setState}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default FarmDashboard;
