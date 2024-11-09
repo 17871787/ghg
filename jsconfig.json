@@ -1,9 +1,6 @@
 {
-    "compilerOptions": {
-      "baseUrl": "src",
-      "paths": {
-        "@/*": ["*"]
-      }
-    },
-    "include": ["src", "ui", "craco.config.js"]
-  }
+  "compilerOptions": {
+    "baseUrl": "src"
+  },
+  "include": ["src", "ui", "craco.config.js"]
+}
