@@ -7,11 +7,11 @@ import {
 } from 'recharts';
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription
-} from "@/components/ui/card";
-import { Alert } from "@/components/ui/alert";
-import { Slider } from "@/components/ui/slider";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+} from "./components/ui/card";
+import { Alert } from "./components/ui/alert";
+import { Slider } from "./components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { Button } from "./components/ui/button";
 import {
   AlertCircle, ArrowRight, Download
 } from 'lucide-react';
@@ -179,23 +179,183 @@ const FarmDashboard = () => {
           <TabsTrigger value="assistant">Assistant</TabsTrigger>
         </TabsList>
 
+        {/* Overview Tab */}
         <TabsContent value="overview">
-          {/* Existing content for the Overview tab */}
-          {/* ... */}
+          <div className="container mx-auto p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Emissions Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Emissions</CardTitle>
+                  <CardDescription>Current GHG emissions level</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {metrics.base.emissions.toFixed(2)}
+                    <span className="text-sm font-normal ml-1">CO2e</span>
+                  </div>
+                  <div className={`text-sm ${
+                    metrics.base.emissions > FARM_CONSTANTS.THRESHOLDS.emissions 
+                    ? 'text-red-500' 
+                    : 'text-green-500'
+                  }`}>
+                    Threshold: {FARM_CONSTANTS.THRESHOLDS.emissions}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Yield Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Milk Yield</CardTitle>
+                  <CardDescription>Production per lactation</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {metrics.base.yield.toFixed(0)}
+                    <span className="text-sm font-normal ml-1">L</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Efficiency Score Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Overall Efficiency</CardTitle>
+                  <CardDescription>Combined performance score</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {metrics.totalScore.toFixed(1)}%
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Trend Chart */}
+              <div className="col-span-full h-[300px]">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Emissions Trend</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={trendAnalysis}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="emissions" 
+                          stroke={FARM_CONSTANTS.COLORS.primary} 
+                          name="Emissions"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="emissionsMA" 
+                          stroke={FARM_CONSTANTS.COLORS.neutral} 
+                          strokeDasharray="5 5" 
+                          name="Moving Average"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
         </TabsContent>
 
+        {/* Analysis Tab */}
         <TabsContent value="analysis">
-          {/* Existing content for the Analysis tab */}
-          {/* ... */}
+          <div className="container mx-auto p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Parameter Controls */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Farm Parameters</CardTitle>
+                  <CardDescription>Adjust parameters to see impact</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Concentrate Feed (kg/day)</label>
+                    <Slider 
+                      value={[state.params.concentrateFeed]}
+                      min={0}
+                      max={20}
+                      step={0.1}
+                      onValueChange={([value]) => 
+                        setState(prev => ({
+                          ...prev,
+                          params: { ...prev.params, concentrateFeed: value }
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Nitrogen Rate (kg N/Ha/Year)</label>
+                    <Slider 
+                      value={[state.params.nitrogenRate]}
+                      min={0}
+                      max={300}
+                      step={1}
+                      onValueChange={([value]) => 
+                        setState(prev => ({
+                          ...prev,
+                          params: { ...prev.params, nitrogenRate: value }
+                        }))
+                      }
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Efficiency Metrics */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Efficiency Metrics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="font-medium">Environmental Score: </span>
+                      <span className={metrics.efficiency.environmental > 70 ? 'text-green-500' : 'text-red-500'}>
+                        {metrics.efficiency.environmental.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Economic Score: </span>
+                      <span className={metrics.efficiency.economic > 70 ? 'text-green-500' : 'text-red-500'}>
+                        {metrics.efficiency.economic.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Operational Score: </span>
+                      <span className={metrics.efficiency.operational > 70 ? 'text-green-500' : 'text-red-500'}>
+                        {metrics.efficiency.operational.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
+        {/* Optimization Tab */}
         <TabsContent value="optimization">
-          {/* Existing content for the Optimization tab */}
-          {/* ... */}
+          <div className="container mx-auto p-4">
+            <div className="space-y-4">
+              {optimizationSuggestions.map((suggestion, index) => (
+                <OptimizationAlert key={index} suggestion={suggestion} />
+              ))}
+            </div>
+          </div>
         </TabsContent>
 
-        <TabsContent value="assistant">
-          {/* Chat interface integrated here */}
+{/* Assistant Tab */}
+<TabsContent value="assistant">
           <ChatWindow
             farmState={state}
             metrics={metrics}
