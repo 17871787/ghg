@@ -1,10 +1,10 @@
 // ChatWindow.js
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { Input } from './components/ui/input';
+import { Button } from './components/ui/button';
+import { ScrollArea } from "./components/ui/scroll-area";  // Changed to relative path
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Send, AlertCircle, ArrowRight, HelpCircle } from 'lucide-react';
 
