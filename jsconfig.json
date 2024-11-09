@@ -2,5 +2,5 @@
   "compilerOptions": {
     "baseUrl": "src"
   },
-  "include": ["src", "ui", "craco.config.js"]
+  "include": ["src", "ui", "craco.config.js", "postcss.config.js"]
 }
